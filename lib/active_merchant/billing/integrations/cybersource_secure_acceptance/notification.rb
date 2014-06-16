@@ -61,7 +61,7 @@ module ActiveMerchant #:nodoc:
             # This is equivalent to the authorization in the Cybersource gateway module.
             # reference_number = merchant_reference_code (order_id), transaction_id = RequestID, payment_token = requestToken.
             # payment_token is required for this. Use transaction_type=authorization,create_payment_token to include it in response.
-            raise ArgumentError, 'payment_token is required for authorization code' if payment_token.blank?
+            warn('payment_token is required for a fully valid authorization code') if payment_token.blank?
             complete? ? [ reference_number, transaction_id, payment_token ].compact.join(";") : nil
           end
 
