@@ -70,7 +70,7 @@ module ActiveMerchant #:nodoc:
           end
 
           def expiry_date
-            Date.strptime params['req_card_expiry_date'], '%m-%Y'
+            params['req_card_expiry_date'].present? ? Date.strptime(params['req_card_expiry_date'], '%m-%Y') : nil
           end
 
           # When was this payment received by the client.
