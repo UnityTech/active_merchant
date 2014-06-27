@@ -84,7 +84,7 @@ module ActiveMerchant #:nodoc:
 
           # the money amount we received in X.2 decimal.
           def gross
-            params['auth_amount']
+            params['auth_amount'] || params['req_amount']
           end
 
           def status
