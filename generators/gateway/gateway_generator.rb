@@ -10,7 +10,6 @@ class GatewayGenerator < ActiveMerchantGenerator
     template "templates/remote_gateway_test.rb", remote_gateway_test_file
 
     before = (next_identifier ? /(?:\n#[^\n]*)*\n#{next_identifier}:\s*\n/ : /\z/)
-    p before
     inject_into_file(fixtures_file, <<EOYAML, before: before)
 
 # Working credentials, no need to replace
@@ -39,7 +38,7 @@ EOYAML
   end
 
   def next_identifier
-    fixtures = (YAML.load(File.read(fixtures_file)).keys + [identifier]).uniq.sort
+    fixtures = (YAML.safe_load(File.read(fixtures_file), [], [], true).keys + [identifier]).uniq.sort
     fixtures[fixtures.sort.index(identifier)+1]
   end
 end

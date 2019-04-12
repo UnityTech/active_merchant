@@ -1,26 +1,33 @@
+language: ruby
+sudo: false
+cache: bundler
+
 rvm:
-  - 2.1.0
-  - 2.0.0
-  - 1.9.3
-  - 1.9.2
+- 2.5
+- 2.4
+- 2.3
 
 gemfile:
-  - Gemfile_rails40
-  - Gemfile
-  - Gemfile_rails31
-  - Gemfile_rails30
-  - Gemfile_rails23
+- gemfiles/Gemfile.rails52
+- gemfiles/Gemfile.rails51
+- gemfiles/Gemfile.rails50
+- gemfiles/Gemfile.rails42
+- gemfiles/Gemfile.rails_master
 
-script: "bundle exec rake test:units"
-
-notifications:
-  email:
-    - payments-dev@shopify.com
-    - nathaniel@talbott.ws
+jobs:
+  include:
+      rvm: 2.5
+      gemfile: Gemfile
+      script: bundle exec rubocop --parallel
 
 matrix:
   exclude:
-    - rvm: 1.9.2
-      gemfile: Gemfile_rails40
-    - rvm: 2.1.0
-      gemfile: Gemfile_rails23
+    - rvm: 2.3
+      gemfile: 'gemfiles/Gemfile.rails_master'
+    - rvm: 2.4
+      gemfile: 'gemfiles/Gemfile.rails_master'
+
+notifications:
+  email:
+    on_success: never
+    on_failure: always

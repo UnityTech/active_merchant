@@ -1,10 +1,10 @@
 require 'test_helper'
-require 'digest/sha1'
 
 class RealexTest < Test::Unit::TestCase
   class ActiveMerchant::Billing::RealexGateway
     # For the purposes of testing, lets redefine some protected methods as public.
-    public :build_purchase_or_authorization_request, :build_refund_request, :build_void_request, :build_capture_request
+    public :build_purchase_or_authorization_request, :build_refund_request, :build_void_request,
+      :build_capture_request, :build_verify_request
   end
 
   def setup
@@ -20,8 +20,8 @@ class RealexTest < Test::Unit::TestCase
     )
 
     @gateway_with_account = RealexGateway.new(
-      :login => @merchant_id,
-      :password => @secret,
+      :login => @login,
+      :password => @password,
       :account => 'bill_web_cengal'
     )
 
@@ -55,7 +55,7 @@ class RealexTest < Test::Unit::TestCase
       :login => 'thestore',
       :password => 'mysecret'
     )
-    Time.stubs(:now).returns(Time.parse("2001-04-03 12:32:45"))
+    Time.stubs(:now).returns(Time.new(2001, 4, 3, 12, 32, 45))
     gateway.expects(:ssl_post).with(anything, regexp_matches(/9af7064afd307c9f988e8dfc271f9257f1fc02f6/)).returns(successful_purchase_response)
     gateway.purchase(29900, credit_card('5105105105105100'), :order_id => 'ORD453-11')
   end
@@ -90,17 +90,17 @@ class RealexTest < Test::Unit::TestCase
 
   def test_deprecated_credit
     @gateway.expects(:ssl_post).returns(successful_refund_response)
-    assert_deprecation_warning(Gateway::CREDIT_DEPRECATION_MESSAGE, @gateway) do
+    assert_deprecation_warning(Gateway::CREDIT_DEPRECATION_MESSAGE) do
       assert_success @gateway.credit(@amount, '1234;1234;1234')
     end
   end
 
   def test_supported_countries
-    assert_equal ['IE', 'GB', "FR", "BE", "NL", "LU", "IT"], RealexGateway.supported_countries
+    assert_equal ['IE', 'GB', 'FR', 'BE', 'NL', 'LU', 'IT', 'US', 'CA', 'ES'], RealexGateway.supported_countries
   end
 
   def test_supported_card_types
-    assert_equal [ :visa, :master, :american_express, :diners_club, :switch, :solo, :laser ], RealexGateway.supported_cardtypes
+    assert_equal [ :visa, :master, :american_express, :diners_club ], RealexGateway.supported_cardtypes
   end
 
   def test_avs_result_not_supported
@@ -134,14 +134,15 @@ class RealexTest < Test::Unit::TestCase
 <request timestamp="20090824160201" type="settle">
   <merchantid>your_merchant_id</merchantid>
   <account>your_account</account>
+  <amount>100</amount>
   <orderid>1</orderid>
   <pasref>4321</pasref>
   <authcode>1234</authcode>
-  <sha1hash>4132600f1dc70333b943fc292bd0ca7d8e722f6e</sha1hash>
+  <sha1hash>ef0a6c485452f3f94aff336fa90c6c62993056ca</sha1hash>
 </request>
 SRC
 
-    assert_xml_equal valid_capture_xml, @gateway.build_capture_request('1;4321;1234', {})
+    assert_xml_equal valid_capture_xml, @gateway.build_capture_request(@amount, '1;4321;1234', {})
   end
 
   def test_purchase_xml
@@ -193,6 +194,35 @@ SRC
     assert_xml_equal valid_void_request_xml, @gateway.build_void_request('1;4321;1234', {})
   end
 
+  def test_verify_xml
+    options = {
+      :order_id => '1'
+    }
+    @gateway.expects(:new_timestamp).returns('20181026114304')
+
+    valid_verify_request_xml = <<-SRC
+<request timestamp="20181026114304" type="otb">
+  <merchantid>your_merchant_id</merchantid>
+  <account>your_account</account>
+  <orderid>1</orderid>
+  <card>
+    <number>4263971921001307</number>
+    <expdate>0808</expdate>
+    <chname>Longbob Longsen</chname>
+    <type>VISA</type>
+    <issueno></issueno>
+    <cvn>
+      <number></number>
+      <presind></presind>
+    </cvn>
+  </card>
+  <sha1hash>d53aebf1eaee4c3ff4c30f83f27b80ce99ba5644</sha1hash>
+</request>
+SRC
+
+    assert_xml_equal valid_verify_request_xml, @gateway.build_verify_request(@credit_card, options)
+  end
+
   def test_auth_xml
     options = {
       :order_id => '1'
@@ -242,7 +272,6 @@ SRC
 SRC
 
     assert_xml_equal valid_refund_request_xml, @gateway.build_refund_request(@amount, '1;4321;1234', {})
-
   end
 
   def test_refund_with_rebate_secret_xml
@@ -265,7 +294,6 @@ SRC
 SRC
 
     assert_xml_equal valid_refund_request_xml, gateway.build_refund_request(@amount, '1;4321;1234', {})
-
   end
 
   def test_auth_with_address
@@ -283,7 +311,6 @@ SRC
     assert_instance_of Response, response
     assert_success response
     assert response.test?
-
   end
 
   def test_zip_in_shipping_address
@@ -306,6 +333,68 @@ SRC
     }
 
     @gateway.authorize(@amount, @credit_card, options)
+  end
+
+  def test_transcript_scrubbing
+    assert_equal scrubbed_transcript, @gateway.scrub(transcript)
+  end
+
+  def test_three_d_secure
+    @gateway.expects(:ssl_post).returns(successful_purchase_response)
+
+    options = {
+      :order_id => '1',
+      :three_d_secure => {
+        :cavv => '1234',
+        :eci => '1234',
+        :xid => '1234'
+      }
+    }
+
+    response = @gateway.authorize(@amount, @credit_card, options)
+    assert_equal 'M', response.cvv_result['code']
+  end
+
+  def test_auth_xml_with_three_d_secure
+    options = {
+      :order_id => '1',
+      :three_d_secure => {
+        :cavv => '1234',
+        :eci => '1234',
+        :xid => '1234'
+      }
+    }
+
+    @gateway.expects(:new_timestamp).returns('20090824160201')
+
+    valid_auth_request_xml = <<-SRC
+<request timestamp="20090824160201" type="auth">
+  <merchantid>your_merchant_id</merchantid>
+  <account>your_account</account>
+  <orderid>1</orderid>
+  <amount currency=\"EUR\">100</amount>
+  <card>
+    <number>4263971921001307</number>
+    <expdate>0808</expdate>
+    <chname>Longbob Longsen</chname>
+    <type>VISA</type>
+    <issueno></issueno>
+    <cvn>
+      <number></number>
+      <presind></presind>
+    </cvn>
+  </card>
+  <autosettle flag="0"/>
+  <sha1hash>3499d7bc8dbacdcfba2286bd74916d026bae630f</sha1hash>
+  <mpi>
+    <cavv>1234</cavv>
+    <eci>1234</eci>
+    <xid>1234</xid>
+  </mpi>
+</request>
+SRC
+
+    assert_xml_equal valid_auth_request_xml, @gateway.build_purchase_or_authorization_request(:authorization, @amount, @credit_card, options)
   end
 
   private
@@ -433,6 +522,70 @@ SRC
     RESPONSE
   end
 
+  def transcript
+    <<-REQUEST
+    <request timestamp="20150722170750" type="auth">
+      <merchantid>your merchant id</merchantid>
+      <orderid>445472dc5ea848fec1c1720a07d5710b</orderid>
+      <amount currency="EUR">10000</amount>
+      <card>
+        <number>4000126842489127</number>
+        <expdate>0620</expdate>
+        <chname>Longbob Longsen</chname>
+        <type>VISA</type>
+        <issueno/>
+        <cvn>
+          <number>123</number>
+          <presind>1</presind>
+        </cvn>
+      </card>
+      <autosettle flag="1"/>
+      <sha1hash>d22109765de91b75e7ad2e5d2fcf8a88235019d9</sha1hash>
+      <comments>
+        <comment id="1">Test Realex Purchase</comment>
+      </comments>
+      <tssinfo>
+        <address type="billing">
+          <code>90210</code>
+          <country>US</country>
+        </address>
+      </tssinfo>
+    </request>
+    REQUEST
+  end
+
+  def scrubbed_transcript
+    <<-REQUEST
+    <request timestamp="20150722170750" type="auth">
+      <merchantid>your merchant id</merchantid>
+      <orderid>445472dc5ea848fec1c1720a07d5710b</orderid>
+      <amount currency="EUR">10000</amount>
+      <card>
+        <number>[FILTERED]</number>
+        <expdate>0620</expdate>
+        <chname>Longbob Longsen</chname>
+        <type>VISA</type>
+        <issueno/>
+        <cvn>
+          <number>[FILTERED]</number>
+          <presind>1</presind>
+        </cvn>
+      </card>
+      <autosettle flag="1"/>
+      <sha1hash>d22109765de91b75e7ad2e5d2fcf8a88235019d9</sha1hash>
+      <comments>
+        <comment id="1">Test Realex Purchase</comment>
+      </comments>
+      <tssinfo>
+        <address type="billing">
+          <code>90210</code>
+          <country>US</country>
+        </address>
+      </tssinfo>
+    </request>
+  REQUEST
+  end
+
   require 'nokogiri'
   def assert_xml_equal(expected, actual)
     assert_xml_equal_recursive(Nokogiri::XML(expected).root, Nokogiri::XML(actual).root)
@@ -445,6 +598,6 @@ SRC
       assert_equal a1.name, b1.name
       assert_equal a1.value, b1.value
     end
-    a.children.zip(b.children).all?{|a1, b1| assert_xml_equal_recursive(a1, b1)}
+    a.children.zip(b.children).all? { |a1, b1| assert_xml_equal_recursive(a1, b1) }
   end
 end
