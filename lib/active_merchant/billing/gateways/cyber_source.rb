@@ -405,8 +405,8 @@ module ActiveMerchant #:nodoc:
 
         unless network_tokenization?(payment_method)
           xml.tag! 'businessRules' do
-            xml.tag!('ignoreAVSResult', 'true') if extract_option(prioritized_options, :ignore_avs) || options[:ignore_avs]
-            xml.tag!('ignoreCVResult', 'true') if extract_option(prioritized_options, :ignore_cvv) || options[:ignore_cvv]
+            xml.tag!('ignoreAVSResult', 'true') if extract_option(prioritized_options, :ignore_avs)
+            xml.tag!('ignoreCVResult', 'true') if extract_option(prioritized_options, :ignore_cvv)
           end
         end
       end
