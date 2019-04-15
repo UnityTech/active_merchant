@@ -8,5 +8,7 @@ Gemfile*.lock
 .rbx/
 *.gem
 .rvmrc
+.idea
+.idea/
 /doc/
 .ruby-version

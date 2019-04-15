@@ -254,10 +254,6 @@ module ActiveMerchant #:nodoc:
       def build_auth_request(money, creditcard_or_reference, options)
         xml = Builder::XmlMarkup.new :indent => 2
         add_payment_method_or_subscription(xml, money, creditcard_or_reference, options)
-<<<<<<< HEAD
-        add_auth_service(xml)
-        add_business_rules_data(xml, options)
-=======
         add_decision_manager_fields(xml, options)
         add_mdd_fields(xml, options)
         add_auth_service(xml, creditcard_or_reference, options)
@@ -265,7 +261,6 @@ module ActiveMerchant #:nodoc:
         add_payment_network_token(xml) if network_tokenization?(creditcard_or_reference)
         add_business_rules_data(xml, creditcard_or_reference, options)
         add_stored_credential_options(xml, options)
->>>>>>> upstream/master
         xml.target!
       end
 
@@ -276,11 +271,7 @@ module ActiveMerchant #:nodoc:
         add_line_item_data(xml, options)
         add_purchase_data(xml, 0, false, options)
         add_tax_service(xml)
-<<<<<<< HEAD
-        add_business_rules_data(xml, options)
-=======
         add_business_rules_data(xml, creditcard, options)
->>>>>>> upstream/master
         xml.target!
       end
 
@@ -291,11 +282,7 @@ module ActiveMerchant #:nodoc:
         xml = Builder::XmlMarkup.new :indent => 2
         add_purchase_data(xml, money, true, options)
         add_capture_service(xml, request_id, request_token)
-<<<<<<< HEAD
-        add_business_rules_data(xml, options)
-=======
         add_business_rules_data(xml, authorization, options)
->>>>>>> upstream/master
         xml.target!
       end
 
@@ -307,15 +294,10 @@ module ActiveMerchant #:nodoc:
         if !payment_method_or_reference.is_a?(String) && card_brand(payment_method_or_reference) == 'check'
           add_check_service(xml)
         else
-<<<<<<< HEAD
-          add_purchase_service(xml, options)
-          add_business_rules_data(xml, options) unless options[:pinless_debit_card]
-=======
           add_purchase_service(xml, payment_method_or_reference, options)
           add_threeds_services(xml, options)
           add_payment_network_token(xml) if network_tokenization?(payment_method_or_reference)
           add_business_rules_data(xml, payment_method_or_reference, options) unless options[:pinless_debit_card]
->>>>>>> upstream/master
         end
         xml.target!
       end
@@ -381,11 +363,7 @@ module ActiveMerchant #:nodoc:
           end
         end
         add_subscription_create_service(xml, options)
-<<<<<<< HEAD
-        add_business_rules_data(xml, options)
-=======
         add_business_rules_data(xml, payment_method, options)
->>>>>>> upstream/master
         xml.target!
       end
 
@@ -397,11 +375,7 @@ module ActiveMerchant #:nodoc:
         add_creditcard_payment_method(xml) if creditcard
         add_subscription(xml, options, reference)
         add_subscription_update_service(xml, options)
-<<<<<<< HEAD
-        add_business_rules_data(xml, options)
-=======
         add_business_rules_data(xml, creditcard, options)
->>>>>>> upstream/master
         xml.target!
       end
 
@@ -426,19 +400,13 @@ module ActiveMerchant #:nodoc:
         xml.target!
       end
 
-<<<<<<< HEAD
-      def add_business_rules_data(xml, options)
-        xml.tag! 'businessRules' do
-          xml.tag!('ignoreAVSResult', 'true') if @options[:ignore_avs] || options[:ignore_avs]
-          xml.tag!('ignoreCVResult', 'true') if @options[:ignore_cvv] || options[:ignore_cvv]
-=======
       def add_business_rules_data(xml, payment_method, options)
         prioritized_options = [options, @options]
 
         unless network_tokenization?(payment_method)
           xml.tag! 'businessRules' do
-            xml.tag!('ignoreAVSResult', 'true') if extract_option(prioritized_options, :ignore_avs)
-            xml.tag!('ignoreCVResult', 'true') if extract_option(prioritized_options, :ignore_cvv)
+            xml.tag!('ignoreAVSResult', 'true') if extract_option(prioritized_options, :ignore_avs) || options[:ignore_avs]
+            xml.tag!('ignoreCVResult', 'true') if extract_option(prioritized_options, :ignore_cvv) || options[:ignore_cvv]
           end
         end
       end
@@ -446,7 +414,6 @@ module ActiveMerchant #:nodoc:
       def extract_option(prioritized_options, option_name)
         options_matching_key = prioritized_options.detect do |options|
           options.has_key? option_name
->>>>>>> upstream/master
         end
         options_matching_key[option_name] if options_matching_key
       end
