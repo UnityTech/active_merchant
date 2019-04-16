@@ -730,7 +730,6 @@ module ActiveMerchant #:nodoc:
             end
           end
         end
-        puts xml
         xml.target!
       end
 
